@@ -4,6 +4,9 @@
 // Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,4 +14,132 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  ADMIN
+  SELLER
+  BUYER
+}
+
+model User {
+  id             String    @id @default(uuid())
+  email          String    @unique
+  username       String    @unique
+  name           String
+  password       String
+  role           UserRole
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  // Relations
+  seller         Seller?
+  buyer          Buyer?
+  admin          Admin?
+}
+
+model Admin {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Seller {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  profilePictures String[]
+  bio            String?
+  verified       Boolean   @default(false)
+  rating         Float     @default(0)
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Relations
+  contactDetails ContactDetails?
+  services       Service[]
+  reviews        Review[]
+  purchases      Purchase[]
+}
+
+model Buyer {
+  id             String    @id @default(uuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Relations
+  purchases      Purchase[]
+  reviews        Review[]
+}
+
+model ContactDetails {
+  id             String    @id @default(uuid())
+  sellerId       String    @unique
+  phoneNumber    String
+  instagram      String?
+  wechat         String?
+  seller         Seller    @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+}
+
+model Service {
+  id             String    @id @default(uuid())
+  title          String
+  description    String
+  price          Float
+  isAvailable    Boolean   @default(true)
+  sellerId       String
+  seller         Seller    @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  // Relations
+  purchases      PurchaseService[]
+  reviews        Review[]
+}
+
+model Purchase {
+  id             String    @id @default(uuid())
+  buyerId        String
+  buyer          Buyer     @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  sellerId       String
+  seller         Seller    @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  totalAmount    Float
+  status         String    // PENDING, ACCEPTED, COMPLETED, CANCELLED, REFUNDED
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  
+  // Relations
+  services       PurchaseService[]
+  payment        Payment?
+}
+
+model PurchaseService {
+  purchaseId     String
+  purchase       Purchase  @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  serviceId      String
+  service        Service   @relation(fields: [serviceId], references: [id])
+  price          Float     // We store the price at the time of purchase
+
+  @@id([purchaseId, serviceId])
+}
+
+model Payment {
+  id             String    @id @default(uuid())
+  purchaseId     String    @unique
+  purchase       Purchase  @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  amount         Float
+  paymentMethod  String
+  status         String    // PENDING, COMPLETED, FAILED, REFUNDED
+  createdAt      DateTime  @default(now())
+}
+
+model Review {
+  id             String    @id @default(uuid())
+  buyerId        String
+  buyer          Buyer     @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  sellerId       String
+  seller         Seller    @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  serviceId      String
+  service        Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  rating         Int
+  comment        String
+  createdAt      DateTime  @default(now())
 }
