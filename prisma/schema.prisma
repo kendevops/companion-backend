@@ -31,7 +31,7 @@ model User {
   role           UserRole
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
-  
+
   // Relations
   seller         Seller?
   buyer          Buyer?
@@ -52,7 +52,7 @@ model Seller {
   verified       Boolean   @default(false)
   rating         Float     @default(0)
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   // Relations
   contactDetails ContactDetails?
   services       Service[]
@@ -64,7 +64,7 @@ model Buyer {
   id             String    @id @default(uuid())
   userId         String    @unique
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+
   // Relations
   purchases      Purchase[]
   reviews        Review[]
@@ -89,7 +89,7 @@ model Service {
   seller         Seller    @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
-  
+
   // Relations
   purchases      PurchaseService[]
   reviews        Review[]
@@ -105,7 +105,7 @@ model Purchase {
   status         String    // PENDING, ACCEPTED, COMPLETED, CANCELLED, REFUNDED
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
-  
+
   // Relations
   services       PurchaseService[]
   payment        Payment?
