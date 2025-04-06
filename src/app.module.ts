@@ -15,6 +15,7 @@ import { RolesGuard } from './auth/guards/roles.guard';
 // import { UploadsModule } from './uploads/uploads.module';
 import { PurchasesModule } from './purchases/purchases.module';
 import { PaymentsModule } from './payments/payments.module';
+import { ReviewsModule } from './reviews/reviews.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { PaymentsModule } from './payments/payments.module';
     ServicesModule,
     PurchasesModule,
     PaymentsModule,
+    ReviewsModule,
     // PurchasesModule,
     // PaymentsModule,
     // ReviewsModule,
