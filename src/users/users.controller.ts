@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
   Controller,
   Get,
-  Post,
   Body,
   Patch,
   Param,

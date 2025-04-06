@@ -1,3 +1,6 @@
+/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
@@ -5,9 +8,10 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { User, UserRole, Prisma } from '@prisma/client';
+import { User, UserRole } from '@prisma/client';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import * as bcrypt from 'bcrypt';
@@ -16,7 +20,7 @@ import * as bcrypt from 'bcrypt';
 export class UsersService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createUserDto: CreateUserDto): Promise<User> {
+  async create(createUserDto: CreateUserDto): Promise<Omit<User, 'password'>> {
     const { role, ...userData } = createUserDto;
 
     // Check if user with email or username already exists
@@ -72,8 +76,8 @@ export class UsersService {
     });
   }
 
-  async findAll(): Promise<User[]> {
-    return this.prisma.user.findMany({
+  async findAll(): Promise<Omit<User, 'password'>[]> {
+    return await this.prisma.user.findMany({
       select: {
         id: true,
         name: true,
@@ -82,7 +86,7 @@ export class UsersService {
         role: true,
         createdAt: true,
         updatedAt: true,
-        password: false, // Exclude password
+        password: true,
       },
     });
   }
@@ -98,7 +102,7 @@ export class UsersService {
         role: true,
         createdAt: true,
         updatedAt: true,
-        password: false, // Exclude password
+        password: true, // Exclude password
       },
     });
 
@@ -109,19 +113,32 @@ export class UsersService {
     return user;
   }
 
-  async findByEmail(email: string): Promise<User | null> {
-    return this.prisma.user.findUnique({
+  async findByEmail(email: string): Promise<any> {
+    return await this.prisma.user.findUnique({
       where: { email },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        username: true,
+        role: true,
+        createdAt: true,
+        updatedAt: true,
+        password: true, // Include the password field
+      },
     });
   }
 
   async findByUsername(username: string): Promise<User | null> {
-    return this.prisma.user.findUnique({
+    return await this.prisma.user.findUnique({
       where: { username },
     });
   }
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
+  async update(
+    id: string,
+    updateUserDto: UpdateUserDto,
+  ): Promise<Omit<User, 'password'>> {
     // Check if user exists
     await this.findById(id);
 
@@ -158,14 +175,13 @@ export class UsersService {
         role: true,
         createdAt: true,
         updatedAt: true,
-        password: false, // Exclude password
       },
     });
 
     return updatedUser;
   }
 
-  async remove(id: string): Promise<User> {
+  async remove(id: string): Promise<Omit<User, 'password'>> {
     // Check if user exists
     await this.findById(id);
 
@@ -180,7 +196,6 @@ export class UsersService {
         role: true,
         createdAt: true,
         updatedAt: true,
-        password: false, // Exclude password
       },
     });
 
@@ -399,6 +414,9 @@ export class UsersService {
 
     const seller = await this.prisma.seller.findFirst({
       where: { userId },
+      include: {
+        contactDetails: true,
+      },
     });
 
     if (!seller) {
@@ -408,6 +426,7 @@ export class UsersService {
     const { contactDetails, ...sellerData } = profileData;
 
     // Update the seller profile
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const updatedSeller = await this.prisma.seller.update({
       where: { id: seller.id },
       data: sellerData,

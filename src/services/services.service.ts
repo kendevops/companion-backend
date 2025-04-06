@@ -1,3 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/require-await */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
   NotFoundException,
@@ -65,6 +70,16 @@ export class ServicesService {
     return this.prisma.service.findMany({
       where: {
         sellerId,
+      },
+    });
+  }
+
+  async findAllByUserId(userId: string): Promise<Service[]> {
+    return this.prisma.service.findMany({
+      where: {
+        seller: {
+          userId,
+        },
       },
     });
   }

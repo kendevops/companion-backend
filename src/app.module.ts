@@ -5,8 +5,8 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
-// import { UsersModule } from './users/users.module';
-// import { ServicesModule } from './services/services.module';
+import { UsersModule } from './users/users.module';
+import { ServicesModule } from './services/services.module';
 // import { PurchasesModule } from './purchases/purchases.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
@@ -21,8 +21,8 @@ import { RolesGuard } from './auth/guards/roles.guard';
     }),
     PrismaModule,
     AuthModule,
-    // UsersModule,
-    // ServicesModule,
+    UsersModule,
+    ServicesModule,
     // PurchasesModule,
     // PaymentsModule,
     // ReviewsModule,
