@@ -49,7 +49,7 @@ lerna-debug.log*
 
 # files
 docker-compose.yml
-task-definitions.json
+task-definition.json
 
 # Runtime data
 pids
