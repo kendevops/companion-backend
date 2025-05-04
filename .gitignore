@@ -47,6 +47,10 @@ lerna-debug.log*
 .temp
 .tmp
 
+# files
+docker-compose.yml
+task-definitions.json
+
 # Runtime data
 pids
 *.pid
