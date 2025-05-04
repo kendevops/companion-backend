@@ -23,7 +23,6 @@ export class CreateUserDto {
   @MinLength(8)
   password: string;
 
-  // eslint-disable-next-line @typescript-eslint/no-unsafe-argument
   @IsEnum(UserRole)
   role: UserRole;
 }
