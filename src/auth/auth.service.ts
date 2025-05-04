@@ -6,18 +6,30 @@ import {
   Injectable,
   UnauthorizedException,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { PrismaService } from '../prisma/prisma.service';
 import { JwtService } from '@nestjs/jwt';
+import { v4 as uuidv4 } from 'uuid';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 // import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
+  // Store password reset tokens temporarily (would use a proper storage in production)
+  private passwordResetTokens: Map<string, { email: string; expires: Date }> =
+    new Map();
+
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
+    private configService: ConfigService,
+    private prisma: PrismaService,
   ) {}
 
   async validateUser(email: string, password: string): Promise<any> {
@@ -81,5 +93,81 @@ export class AuthService {
 
     // Return the JWT token and user info
     return this.login(user);
+  }
+
+  async forgotPassword(forgotPasswordDto: ForgotPasswordDto) {
+    const { email } = forgotPasswordDto;
+
+    // Check if the user exists
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      // For security reasons, don't reveal that the email doesn't exist
+      // Still return a success response
+      return {
+        message:
+          'If your email is registered, you will receive a password reset link.',
+      };
+    }
+
+    // Generate a reset token
+    const token = uuidv4();
+
+    // Set token expiration (1 hour)
+    const expires = new Date();
+    expires.setHours(expires.getHours() + 1);
+
+    // Store the token (in a real app, this would be stored in a database)
+    this.passwordResetTokens.set(token, { email, expires });
+
+    // In a real application, you would send an email with the reset link
+    // For this demo, we'll just return the token
+    const resetLink = `${this.configService.get('FRONTEND_URL', 'http://localhost:3000')}/reset-password?token=${token}`;
+
+    console.log(`Password reset link for ${email}: ${resetLink}`);
+
+    return {
+      message:
+        'If your email is registered, you will receive a password reset link.',
+      // Only for development/demo purposes:
+      token,
+      resetLink,
+    };
+  }
+
+  async resetPassword(resetPasswordDto: ResetPasswordDto) {
+    const { token, password } = resetPasswordDto;
+
+    // Check if the token exists and is valid
+    const tokenData = this.passwordResetTokens.get(token);
+    if (!tokenData) {
+      throw new BadRequestException('Invalid or expired token');
+    }
+
+    // Check if the token has expired
+    if (tokenData.expires < new Date()) {
+      // Remove expired token
+      this.passwordResetTokens.delete(token);
+      throw new BadRequestException('Token has expired');
+    }
+
+    // Find the user by email
+    const user = await this.usersService.findByEmail(tokenData.email);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Hash the new password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Update the user's password
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    });
+
+    // Remove the used token
+    this.passwordResetTokens.delete(token);
+
+    return { message: 'Password has been reset successfully' };
   }
 }

@@ -11,7 +11,8 @@ services:
       - '3001:3001'
     environment:
       - NODE_ENV=production
-      - DATABASE_URL=postgresql://postgres:postgres@db:5432/companion?schema=public
+      - DATABASE_URL="postgresql://postgres:jackCompanio@database-1.cfyky8s6ucmi.ap-southeast-2.rds.amazonaws.com:5432/companion?schema=public"
+      # - DATABASE_URL=postgresql://neondb_owner:npg_Jt7UmoL9ufFr@ep-cool-heart-a57hztx8-pooler.us-east-2.aws.neon.tech/companion?sslmode=require
       - JWT_SECRET=your-jwt-secret-key-change-in-production
       - PORT=3001
       - UPLOAD_DIR=./uploads
@@ -31,7 +32,7 @@ services:
       - '5432:5432'
     environment:
       - POSTGRES_USER=postgres
-      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_PASSWORD=jackCompanio
       - POSTGRES_DB=companion
     volumes:
       - postgres-data:/var/lib/postgresql/data
