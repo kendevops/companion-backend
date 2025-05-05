@@ -7,15 +7,15 @@ import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
-// import { PrismaService } from './prisma/prisma.service';
+import { PrismaService } from './prisma/prisma.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
-  // const prismaService = app.get(PrismaService);
+  const prismaService = app.get(PrismaService);
 
   // Enable Prisma shutdown hooks
-  // prismaService.enableShutdownHooks(app);
+  prismaService.enableShutdownHooks(app);
 
   // Set global application settings
   app.setGlobalPrefix('api');
