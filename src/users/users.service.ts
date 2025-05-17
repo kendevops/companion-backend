@@ -1,8 +1,5 @@
-/* eslint-disable @typescript-eslint/no-redundant-type-constituents */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Injectable,
   NotFoundException,
@@ -516,7 +513,7 @@ export class UsersService {
     }
   }
 
-  private async getAdminDashboardStats() {
+  async getAdminDashboardStats() {
     const [
       totalUsers,
       totalSellers,
@@ -603,7 +600,7 @@ export class UsersService {
     };
   }
 
-  private async getSellerDashboardStats(userId: string) {
+  async getSellerDashboardStats(userId: string) {
     const seller = await this.prisma.seller.findFirst({
       where: { userId },
     });
@@ -689,7 +686,7 @@ export class UsersService {
     };
   }
 
-  private async getBuyerDashboardStats(userId: string) {
+  async getBuyerDashboardStats(userId: string) {
     const buyer = await this.prisma.buyer.findFirst({
       where: { userId },
     });
