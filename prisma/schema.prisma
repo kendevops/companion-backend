@@ -143,3 +143,28 @@ model Review {
   comment        String
   createdAt      DateTime  @default(now())
 }
+
+model Service {
+  id             String    @id @default(uuid())
+  title          String
+  description    String
+  price          Float
+  isAvailable    Boolean   @default(true)
+  sellerId       String
+  seller         Seller    @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  // Relations
+  purchases      PurchaseService[]
+  reviews        Review[]
+}
+
+model ServiceTemplate {
+  id              String    @id @default(uuid())
+  title           String
+  description     String
+  recommendedPrice Float
+  category        String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}

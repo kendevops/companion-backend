@@ -7,16 +7,13 @@ import { PrismaModule } from './prisma/prisma.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ServicesModule } from './services/services.module';
-// import { PurchasesModule } from './purchases/purchases.module';
 import { JwtAuthGuard } from './auth/guards/jwt-auth.guard';
 import { RolesGuard } from './auth/guards/roles.guard';
-// import { PaymentsModule } from './payments/payments.module';
-// import { ReviewsModule } from './reviews/reviews.module';
-// import { UploadsModule } from './uploads/uploads.module';
 import { PurchasesModule } from './purchases/purchases.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { UploadsModule } from './uploads/uploads.module';
+import { ServiceTemplatesModule } from './service-templates/service-templates.module';
 
 @Module({
   imports: [
@@ -31,10 +28,7 @@ import { UploadsModule } from './uploads/uploads.module';
     PaymentsModule,
     ReviewsModule,
     UploadsModule,
-    // PurchasesModule,
-    // PaymentsModule,
-    // ReviewsModule,
-    // UploadsModule,
+    ServiceTemplatesModule,
   ],
   controllers: [AppController],
   providers: [
