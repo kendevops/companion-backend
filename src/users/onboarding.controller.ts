@@ -3,7 +3,7 @@
 import { Controller, Get, Post, Body, Request } from '@nestjs/common';
 import { OnboardingService } from './onboarding.service';
 import { SellerProfileDto } from './dto/seller-profile.dto';
-import { SellerServicesDto } from './dto/seller-services.dto';
+import { SellerServicesDto } from './dto/seller-service.dto';
 import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';

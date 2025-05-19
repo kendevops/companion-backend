@@ -5,11 +5,12 @@ import { OnboardingService } from './onboarding.service';
 import { OnboardingController } from './onboarding.controller';
 import { PrismaModule } from '../prisma/prisma.module';
 import { StatsService } from './stats.service';
+import { StatsController } from './stats.controller';
 
 @Module({
   imports: [PrismaModule],
   providers: [UsersService, StatsService, OnboardingService],
-  controllers: [UsersController, OnboardingController],
+  controllers: [UsersController, StatsController, OnboardingController],
   exports: [UsersService, StatsService],
 })
 export class UsersModule {}

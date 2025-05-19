@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SellerProfileDto } from './dto/seller-profile.dto';
-import { SellerServicesDto } from './dto/seller-services.dto';
+import { SellerServicesDto } from './dto/seller-service.dto';
 import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
 import { UserRole } from '@prisma/client';
 

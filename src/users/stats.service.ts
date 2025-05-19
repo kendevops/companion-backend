@@ -1,6 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-// import { UserRole } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 import { AdminDashboardStatsDto } from './dto/admin-dashboard-stats.dto';
 import { SellerDashboardStatsDto } from './dto/seller-dashboard-stats.dto';
 import { BuyerDashboardStatsDto } from './dto/buyer-dashboard-stats.dto';
@@ -9,6 +13,19 @@ import { BuyerDashboardStatsDto } from './dto/buyer-dashboard-stats.dto';
 export class StatsService {
   constructor(private prisma: PrismaService) {}
 
+  // Get dashboard statistics based on user role
+  async getDashboardStats(userId: string, userRole: UserRole) {
+    switch (userRole) {
+      case UserRole.ADMIN:
+        return this.getAdminDashboardStats();
+      case UserRole.SELLER:
+        return this.getSellerDashboardStats(userId);
+      case UserRole.BUYER:
+        return this.getBuyerDashboardStats(userId);
+      default:
+        throw new BadRequestException('Invalid user role');
+    }
+  }
   /**
    * Get admin dashboard statistics
    */

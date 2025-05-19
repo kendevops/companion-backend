@@ -499,270 +499,270 @@ export class UsersService {
     return contactDetails;
   }
 
-  // Get dashboard statistics based on user role
-  async getDashboardStats(userId: string, userRole: UserRole) {
-    switch (userRole) {
-      case UserRole.ADMIN:
-        return this.getAdminDashboardStats();
-      case UserRole.SELLER:
-        return this.getSellerDashboardStats(userId);
-      case UserRole.BUYER:
-        return this.getBuyerDashboardStats(userId);
-      default:
-        throw new BadRequestException('Invalid user role');
-    }
-  }
+  // // Get dashboard statistics based on user role
+  // async getDashboardStats(userId: string, userRole: UserRole) {
+  //   switch (userRole) {
+  //     case UserRole.ADMIN:
+  //       return this.getAdminDashboardStats();
+  //     case UserRole.SELLER:
+  //       return this.getSellerDashboardStats(userId);
+  //     case UserRole.BUYER:
+  //       return this.getBuyerDashboardStats(userId);
+  //     default:
+  //       throw new BadRequestException('Invalid user role');
+  //   }
+  // }
 
-  async getAdminDashboardStats() {
-    const [
-      totalUsers,
-      totalSellers,
-      totalBuyers,
-      totalServices,
-      totalPurchases,
-      totalCompletedPurchases,
-      totalRevenue,
-      recentPurchases,
-      recentUsers,
-    ] = await Promise.all([
-      this.prisma.user.count(),
-      this.prisma.seller.count(),
-      this.prisma.buyer.count(),
-      this.prisma.service.count(),
-      this.prisma.purchase.count(),
-      this.prisma.purchase.count({
-        where: { status: 'COMPLETED' },
-      }),
-      this.prisma.payment.aggregate({
-        _sum: { amount: true },
-      }),
-      this.prisma.purchase.findMany({
-        take: 5,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          buyer: {
-            include: {
-              user: {
-                select: {
-                  name: true,
-                  username: true,
-                },
-              },
-            },
-          },
-          seller: {
-            include: {
-              user: {
-                select: {
-                  name: true,
-                  username: true,
-                },
-              },
-            },
-          },
-          services: {
-            include: {
-              service: true,
-            },
-          },
-          payment: true,
-        },
-      }),
-      this.prisma.user.findMany({
-        take: 5,
-        orderBy: { createdAt: 'desc' },
-        select: {
-          id: true,
-          name: true,
-          username: true,
-          role: true,
-          createdAt: true,
-        },
-      }),
-    ]);
+  // async getAdminDashboardStats() {
+  //   const [
+  //     totalUsers,
+  //     totalSellers,
+  //     totalBuyers,
+  //     totalServices,
+  //     totalPurchases,
+  //     totalCompletedPurchases,
+  //     totalRevenue,
+  //     recentPurchases,
+  //     recentUsers,
+  //   ] = await Promise.all([
+  //     this.prisma.user.count(),
+  //     this.prisma.seller.count(),
+  //     this.prisma.buyer.count(),
+  //     this.prisma.service.count(),
+  //     this.prisma.purchase.count(),
+  //     this.prisma.purchase.count({
+  //       where: { status: 'COMPLETED' },
+  //     }),
+  //     this.prisma.payment.aggregate({
+  //       _sum: { amount: true },
+  //     }),
+  //     this.prisma.purchase.findMany({
+  //       take: 5,
+  //       orderBy: { createdAt: 'desc' },
+  //       include: {
+  //         buyer: {
+  //           include: {
+  //             user: {
+  //               select: {
+  //                 name: true,
+  //                 username: true,
+  //               },
+  //             },
+  //           },
+  //         },
+  //         seller: {
+  //           include: {
+  //             user: {
+  //               select: {
+  //                 name: true,
+  //                 username: true,
+  //               },
+  //             },
+  //           },
+  //         },
+  //         services: {
+  //           include: {
+  //             service: true,
+  //           },
+  //         },
+  //         payment: true,
+  //       },
+  //     }),
+  //     this.prisma.user.findMany({
+  //       take: 5,
+  //       orderBy: { createdAt: 'desc' },
+  //       select: {
+  //         id: true,
+  //         name: true,
+  //         username: true,
+  //         role: true,
+  //         createdAt: true,
+  //       },
+  //     }),
+  //   ]);
 
-    // Calculate completion rate
-    const completionRate =
-      totalPurchases > 0
-        ? Math.round((totalCompletedPurchases / totalPurchases) * 100)
-        : 0;
+  //   // Calculate completion rate
+  //   const completionRate =
+  //     totalPurchases > 0
+  //       ? Math.round((totalCompletedPurchases / totalPurchases) * 100)
+  //       : 0;
 
-    return {
-      totalUsers,
-      totalSellers,
-      totalBuyers,
-      totalServices,
-      totalPurchases,
-      completionRate,
-      totalRevenue: totalRevenue._sum.amount || 0,
-      recentPurchases,
-      recentUsers,
-    };
-  }
+  //   return {
+  //     totalUsers,
+  //     totalSellers,
+  //     totalBuyers,
+  //     totalServices,
+  //     totalPurchases,
+  //     completionRate,
+  //     totalRevenue: totalRevenue._sum.amount || 0,
+  //     recentPurchases,
+  //     recentUsers,
+  //   };
+  // }
 
-  async getSellerDashboardStats(userId: string) {
-    const seller = await this.prisma.seller.findFirst({
-      where: { userId },
-    });
+  // async getSellerDashboardStats(userId: string) {
+  //   const seller = await this.prisma.seller.findFirst({
+  //     where: { userId },
+  //   });
 
-    if (!seller) {
-      throw new NotFoundException('Seller profile not found');
-    }
+  //   if (!seller) {
+  //     throw new NotFoundException('Seller profile not found');
+  //   }
 
-    const [
-      totalServices,
-      activePurchases,
-      completedPurchases,
-      totalEarnings,
-      recentPurchases,
-      profileViews,
-    ] = await Promise.all([
-      this.prisma.service.count({
-        where: { sellerId: seller.id },
-      }),
-      this.prisma.purchase.count({
-        where: {
-          sellerId: seller.id,
-          status: { in: ['PENDING', 'ACCEPTED'] },
-        },
-      }),
-      this.prisma.purchase.count({
-        where: {
-          sellerId: seller.id,
-          status: 'COMPLETED',
-        },
-      }),
-      this.prisma.payment.aggregate({
-        where: {
-          purchase: {
-            sellerId: seller.id,
-            status: { in: ['ACCEPTED', 'COMPLETED'] },
-          },
-        },
-        _sum: { amount: true },
-      }),
-      this.prisma.purchase.findMany({
-        where: { sellerId: seller.id },
-        take: 5,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          buyer: {
-            include: {
-              user: {
-                select: {
-                  name: true,
-                  username: true,
-                },
-              },
-            },
-          },
-          services: {
-            include: {
-              service: true,
-            },
-          },
-          payment: true,
-        },
-      }),
-      100, // Mock profile views - in a real app this would come from analytics
-    ]);
+  //   const [
+  //     totalServices,
+  //     activePurchases,
+  //     completedPurchases,
+  //     totalEarnings,
+  //     recentPurchases,
+  //     profileViews,
+  //   ] = await Promise.all([
+  //     this.prisma.service.count({
+  //       where: { sellerId: seller.id },
+  //     }),
+  //     this.prisma.purchase.count({
+  //       where: {
+  //         sellerId: seller.id,
+  //         status: { in: ['PENDING', 'ACCEPTED'] },
+  //       },
+  //     }),
+  //     this.prisma.purchase.count({
+  //       where: {
+  //         sellerId: seller.id,
+  //         status: 'COMPLETED',
+  //       },
+  //     }),
+  //     this.prisma.payment.aggregate({
+  //       where: {
+  //         purchase: {
+  //           sellerId: seller.id,
+  //           status: { in: ['ACCEPTED', 'COMPLETED'] },
+  //         },
+  //       },
+  //       _sum: { amount: true },
+  //     }),
+  //     this.prisma.purchase.findMany({
+  //       where: { sellerId: seller.id },
+  //       take: 5,
+  //       orderBy: { createdAt: 'desc' },
+  //       include: {
+  //         buyer: {
+  //           include: {
+  //             user: {
+  //               select: {
+  //                 name: true,
+  //                 username: true,
+  //               },
+  //             },
+  //           },
+  //         },
+  //         services: {
+  //           include: {
+  //             service: true,
+  //           },
+  //         },
+  //         payment: true,
+  //       },
+  //     }),
+  //     100, // Mock profile views - in a real app this would come from analytics
+  //   ]);
 
-    // Calculate completion rate
-    const totalPurchases = activePurchases + completedPurchases;
-    const completionRate =
-      totalPurchases > 0
-        ? Math.round((completedPurchases / totalPurchases) * 100)
-        : 0;
+  //   // Calculate completion rate
+  //   const totalPurchases = activePurchases + completedPurchases;
+  //   const completionRate =
+  //     totalPurchases > 0
+  //       ? Math.round((completedPurchases / totalPurchases) * 100)
+  //       : 0;
 
-    return {
-      totalServices,
-      activePurchases,
-      completedPurchases,
-      completionRate,
-      totalEarnings: totalEarnings._sum.amount || 0,
-      recentPurchases,
-      profileViews,
-      rating: seller.rating,
-    };
-  }
+  //   return {
+  //     totalServices,
+  //     activePurchases,
+  //     completedPurchases,
+  //     completionRate,
+  //     totalEarnings: totalEarnings._sum.amount || 0,
+  //     recentPurchases,
+  //     profileViews,
+  //     rating: seller.rating,
+  //   };
+  // }
 
-  async getBuyerDashboardStats(userId: string) {
-    const buyer = await this.prisma.buyer.findFirst({
-      where: { userId },
-    });
+  // async getBuyerDashboardStats(userId: string) {
+  //   const buyer = await this.prisma.buyer.findFirst({
+  //     where: { userId },
+  //   });
 
-    if (!buyer) {
-      throw new NotFoundException('Buyer profile not found');
-    }
+  //   if (!buyer) {
+  //     throw new NotFoundException('Buyer profile not found');
+  //   }
 
-    const [
-      totalPurchases,
-      activePurchases,
-      completedPurchases,
-      totalSpent,
-      recentPurchases,
-      favoriteSellers, // This would typically come from a favorites table
-    ] = await Promise.all([
-      this.prisma.purchase.count({
-        where: { buyerId: buyer.id },
-      }),
-      this.prisma.purchase.count({
-        where: {
-          buyerId: buyer.id,
-          status: { in: ['PENDING', 'ACCEPTED'] },
-        },
-      }),
-      this.prisma.purchase.count({
-        where: {
-          buyerId: buyer.id,
-          status: 'COMPLETED',
-        },
-      }),
-      this.prisma.payment.aggregate({
-        where: {
-          purchase: {
-            buyerId: buyer.id,
-          },
-        },
-        _sum: { amount: true },
-      }),
-      this.prisma.purchase.findMany({
-        where: { buyerId: buyer.id },
-        take: 5,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          seller: {
-            include: {
-              user: {
-                select: {
-                  name: true,
-                  username: true,
-                },
-              },
-            },
-          },
-          services: {
-            include: {
-              service: true,
-            },
-          },
-          payment: true,
-        },
-      }),
-      [], // Mock favorite sellers - in a real app this would come from favorites table
-    ]);
+  //   const [
+  //     totalPurchases,
+  //     activePurchases,
+  //     completedPurchases,
+  //     totalSpent,
+  //     recentPurchases,
+  //     favoriteSellers, // This would typically come from a favorites table
+  //   ] = await Promise.all([
+  //     this.prisma.purchase.count({
+  //       where: { buyerId: buyer.id },
+  //     }),
+  //     this.prisma.purchase.count({
+  //       where: {
+  //         buyerId: buyer.id,
+  //         status: { in: ['PENDING', 'ACCEPTED'] },
+  //       },
+  //     }),
+  //     this.prisma.purchase.count({
+  //       where: {
+  //         buyerId: buyer.id,
+  //         status: 'COMPLETED',
+  //       },
+  //     }),
+  //     this.prisma.payment.aggregate({
+  //       where: {
+  //         purchase: {
+  //           buyerId: buyer.id,
+  //         },
+  //       },
+  //       _sum: { amount: true },
+  //     }),
+  //     this.prisma.purchase.findMany({
+  //       where: { buyerId: buyer.id },
+  //       take: 5,
+  //       orderBy: { createdAt: 'desc' },
+  //       include: {
+  //         seller: {
+  //           include: {
+  //             user: {
+  //               select: {
+  //                 name: true,
+  //                 username: true,
+  //               },
+  //             },
+  //           },
+  //         },
+  //         services: {
+  //           include: {
+  //             service: true,
+  //           },
+  //         },
+  //         payment: true,
+  //       },
+  //     }),
+  //     [], // Mock favorite sellers - in a real app this would come from favorites table
+  //   ]);
 
-    // Recommended sellers would typically be based on purchase history, ratings, etc.
-    const recommendedSellers = await this.findSellers();
+  //   // Recommended sellers would typically be based on purchase history, ratings, etc.
+  //   const recommendedSellers = await this.findSellers();
 
-    return {
-      totalPurchases,
-      activePurchases,
-      completedPurchases,
-      totalSpent: totalSpent._sum.amount || 0,
-      recentPurchases,
-      favoriteSellers,
-      recommendedSellers: recommendedSellers.slice(0, 5), // Just take the first 5 for recommendation
-    };
-  }
+  //   return {
+  //     totalPurchases,
+  //     activePurchases,
+  //     completedPurchases,
+  //     totalSpent: totalSpent._sum.amount || 0,
+  //     recentPurchases,
+  //     favoriteSellers,
+  //     recommendedSellers: recommendedSellers.slice(0, 5), // Just take the first 5 for recommendation
+  //   };
+  // }
 }
