@@ -5,7 +5,7 @@ import { StatsService } from './stats.service';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
 
-@Controller('onboarding')
+@Controller('Stats')
 export class StatsController {
   constructor(private readonly statsService: StatsService) {}
 
