@@ -57,21 +57,23 @@ async function main() {
       },
       services: [
         {
-          title: 'Personal Shopping',
-          description:
-            'I will help you find the perfect outfits for any occasion.',
-          price: 150,
+          title: 'Video Call 😘',
+          description: 'You can have a video call with me for 15 minutes',
+          price: 100,
+          category: 'Personal Services',
         },
         {
-          title: 'Style Consultation',
-          description: 'Get professional advice on your style.',
-          price: 120,
+          title: 'Message Me 🥰',
+          description:
+            'You can send me a message and I will reply to you in the next 48 hours',
+          price: 100,
+          category: 'Personal Services',
         },
         {
-          title: 'Wardrobe Organization',
-          description:
-            'I will help you organize your wardrobe for maximum efficiency.',
-          price: 200,
+          title: 'Coffee Date ☕',
+          description: 'Get a Coffee with me at Brick Lane Melbourne',
+          price: 130,
+          category: 'Personal Services',
         },
       ],
     },

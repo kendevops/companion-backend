@@ -17,7 +17,7 @@ import { UsersService } from '../users/users.service';
 import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-// import { UserRole } from '@prisma/client';
+import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
@@ -47,12 +47,43 @@ export class AuthService {
     return result;
   }
 
-  login(user: any) {
+  async login(user: any) {
     const payload = {
       email: user.email,
       sub: user.id,
       role: user.role,
     };
+
+    // Check if the user is a seller and get onboarding status
+    let onboardingRequired = false;
+    let nextOnboardingStep: string | null = null;
+
+    if (user.role === UserRole.SELLER) {
+      // Get the seller record
+      const seller = await this.prisma.seller.findFirst({
+        where: { userId: user.id },
+      });
+
+      if (!seller || !seller.onboardingCompleted) {
+        onboardingRequired = true;
+
+        // Determine next step
+        if (!seller || !seller.bio || seller.profilePictures.length === 0) {
+          nextOnboardingStep = 'profile';
+        } else {
+          // Check if services exist
+          const servicesCount = await this.prisma.service.count({
+            where: { sellerId: seller.id },
+          });
+
+          if (servicesCount < 3) {
+            nextOnboardingStep = 'services';
+          } else {
+            nextOnboardingStep = 'complete';
+          }
+        }
+      }
+    }
 
     return {
       access_token: this.jwtService.sign(payload),

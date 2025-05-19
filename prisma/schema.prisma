@@ -51,6 +51,7 @@ model Seller {
   bio            String?
   verified       Boolean   @default(false)
   rating         Float     @default(0)
+  onboardingCompleted Boolean @default(false)
   user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Relations
