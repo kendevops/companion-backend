@@ -1,21 +1,32 @@
+/* eslint-disable @typescript-eslint/require-await */
 import { Module } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
-import { UploadsService } from './uploads.service';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UploadsController } from './uploads.controller';
-import { StaticFilesController } from './static-files.controller';
-import { PrismaModule } from '../prisma/prisma.module';
+import { UploadsService } from './uploads.service';
 
 @Module({
   imports: [
-    PrismaModule,
-    MulterModule.register({
-      dest: process.env.UPLOAD_DIR || './uploads',
-      limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB
-      },
+    ConfigModule,
+    MulterModule.registerAsync({
+      imports: [ConfigModule],
+      useFactory: async (configService: ConfigService) => ({
+        dest: configService.get<string>('UPLOAD_DIR', './uploads'),
+        limits: {
+          fileSize: configService.get<number>('MAX_FILE_SIZE', 5 * 1024 * 1024), // 5MB
+        },
+        fileFilter: (req, file, cb) => {
+          if (file.mimetype.startsWith('image/')) {
+            cb(null, true);
+          } else {
+            cb(new Error('Only image files are allowed'), false);
+          }
+        },
+      }),
+      inject: [ConfigService],
     }),
   ],
-  controllers: [UploadsController, StaticFilesController],
+  controllers: [UploadsController],
   providers: [UploadsService],
   exports: [UploadsService],
 })

@@ -16,6 +16,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { Response } from 'express';
+// import { multer } from 'multer';
 import { UploadsService } from './uploads.service';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { SkipOnboardingCheck } from '../auth/decorators/skip-onboarding.decorator';
