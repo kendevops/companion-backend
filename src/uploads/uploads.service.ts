@@ -1,11 +1,9 @@
 /* eslint-disable @typescript-eslint/require-await */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
@@ -21,6 +19,29 @@ export class UploadsService {
   ) {}
 
   async uploadProfilePicture(file: Express.Multer.File, userId: string) {
+    // Validate file
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+
+    // Validate file type
+    if (!file.mimetype.startsWith('image/')) {
+      throw new BadRequestException('File must be an image');
+    }
+
+    // Validate file size (5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      throw new BadRequestException('File size must be less than 5MB');
+    }
+
+    console.log('Uploading file for user:', userId);
+    console.log('File details:', {
+      filename: file.filename,
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size,
+    });
+
     // Get the user
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -43,6 +64,9 @@ export class UploadsService {
 
       // Add the new profile picture
       const fileUrl = `/uploads/${file.filename}`;
+
+      console.log('Adding profile picture:', fileUrl);
+
       const updatedSeller = await this.prisma.seller.update({
         where: { id: seller.id },
         data: {
@@ -52,9 +76,14 @@ export class UploadsService {
         },
       });
 
+      console.log('Profile picture added successfully');
+
       return {
         success: true,
-        url: fileUrl,
+        fileUrl, // This matches what the frontend expects
+        url: fileUrl, // Keep this for backward compatibility
+        filename: file.filename,
+        originalName: file.originalname,
         profilePictures: updatedSeller.profilePictures,
       };
     } else {
@@ -64,6 +93,8 @@ export class UploadsService {
   }
 
   async removeProfilePicture(fileUrl: string, userId: string) {
+    console.log('Removing profile picture:', fileUrl, 'for user:', userId);
+
     // Get the user
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -103,10 +134,19 @@ export class UploadsService {
 
       // Try to delete the actual file from disk
       try {
-        // const filename = fileUrl.split('/').pop();
+        const filename = fileUrl.split('/').pop(); // Extract filename from URL
+        if (!filename) {
+          throw new NotFoundException(
+            'Filename could not be determined from URL',
+          );
+        }
         const uploadDir =
           this.configService.get<string>('UPLOAD_DIR') ?? './uploads';
-        await unlink(join(process.cwd(), uploadDir));
+        const filePath = join(process.cwd(), uploadDir, filename);
+
+        console.log('Attempting to delete file:', filePath);
+        await unlink(filePath);
+        console.log('File deleted successfully');
       } catch (error) {
         console.error('Error deleting file:', error);
         // Continue even if file deletion fails

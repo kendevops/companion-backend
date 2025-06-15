@@ -1,13 +1,14 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
+import { join } from 'path';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { NestExpressApplication } from '@nestjs/platform-express';
 // import { PrismaService } from './prisma/prisma.service';
-
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
   const configService = app.get(ConfigService);
   // const prismaService = app.get(PrismaService);
 
@@ -36,6 +37,15 @@ async function bootstrap() {
 
   // Security
   app.use(helmet());
+
+  // Serve static files (uploaded images)
+  const uploadDir = configService.get<string>('UPLOAD_DIR', './uploads');
+  const uploadPath = join(process.cwd(), uploadDir);
+  app.useStaticAssets(uploadPath, {
+    prefix: '/uploads/',
+  });
+
+  console.log('Serving static files from:', uploadPath);
 
   // Swagger API documentation
   if (configService.get<string>('NODE_ENV') !== 'production') {

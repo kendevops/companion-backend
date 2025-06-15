@@ -1,43 +1,59 @@
 /* eslint-disable @typescript-eslint/require-await */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-argument */
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Module } from '@nestjs/common';
-import { UploadsService } from './uploads.service';
-import { UploadsController } from './uploads.controller';
 import { MulterModule } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { extname } from 'path';
+import { diskStorage } from 'multer';
+import { extname, join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import { existsSync, mkdirSync } from 'fs';
+
+import { UploadsController } from './uploads.controller';
+import { UploadsService } from './uploads.service';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [
+    PrismaModule,
+    ConfigModule,
     MulterModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
-      useFactory: async (configService: ConfigService) => ({
-        storage: diskStorage({
-          destination: configService.get<string>('UPLOAD_DIR', './uploads'),
-          filename: (req, file, cb) => {
-            // Generate a unique filename with original extension
-            const randomName = uuidv4();
-            const fileExtName = extname(file.originalname);
-            cb(null, `${randomName}${fileExtName}`);
+      useFactory: async (configService: ConfigService) => {
+        const uploadDir = configService.get<string>('UPLOAD_DIR', './uploads');
+        const uploadPath = join(process.cwd(), uploadDir);
+
+        // Ensure upload directory exists
+        if (!existsSync(uploadPath)) {
+          mkdirSync(uploadPath, { recursive: true });
+          console.log('Created upload directory:', uploadPath);
+        }
+
+        return {
+          storage: diskStorage({
+            destination: (req, file, cb) => {
+              cb(null, uploadPath);
+            },
+            filename: (req, file, cb) => {
+              // Generate unique filename
+              const uniqueSuffix = uuidv4();
+              const fileExtension = extname(file.originalname);
+              const filename = `${uniqueSuffix}${fileExtension}`;
+              cb(null, filename);
+            },
+          }),
+          fileFilter: (req, file, cb) => {
+            // Accept only images
+            if (file.mimetype.startsWith('image/')) {
+              cb(null, true);
+            } else {
+              cb(new Error('Only image files are allowed'), false);
+            }
           },
-        }),
-        limits: {
-          fileSize: configService.get<number>('MAX_FILE_SIZE', 5242880), // 5MB default
-        },
-        fileFilter: (req, file, cb) => {
-          // Allow only images
-          if (!file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
-            return cb(new Error('Only image files are allowed!'), false);
-          }
-          cb(null, true);
-        },
-      }),
+          limits: {
+            fileSize: 5 * 1024 * 1024, // 5MB limit
+          },
+        };
+      },
     }),
   ],
   controllers: [UploadsController],
