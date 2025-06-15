@@ -172,8 +172,8 @@ export class OnboardingService {
             sellerId: sellerId,
             title: serviceData.title,
             description:
-              serviceData.description || predefinedService.description,
-            price: serviceData.price || predefinedService.basePrice,
+              serviceData.description || predefinedService?.description || '',
+            price: serviceData.price ?? predefinedService?.basePrice ?? 0,
             isAvailable: true,
           },
         });
