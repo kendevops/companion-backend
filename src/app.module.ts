@@ -14,7 +14,6 @@ import { PurchasesModule } from './purchases/purchases.module';
 import { PaymentsModule } from './payments/payments.module';
 import { ReviewsModule } from './reviews/reviews.module';
 import { UploadsModule } from './uploads/uploads.module';
-import { ServiceTemplatesModule } from './service-templates/service-templates.module';
 
 @Module({
   imports: [
@@ -29,7 +28,6 @@ import { ServiceTemplatesModule } from './service-templates/service-templates.mo
     PaymentsModule,
     ReviewsModule,
     UploadsModule,
-    ServiceTemplatesModule,
   ],
   controllers: [AppController],
   providers: [
