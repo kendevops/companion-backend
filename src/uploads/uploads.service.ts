@@ -1,22 +1,26 @@
-/* eslint-disable @typescript-eslint/require-await */
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
 import {
   Injectable,
-  NotFoundException,
-  ForbiddenException,
   BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
-import { unlink } from 'fs/promises';
-import { join } from 'path';
-import { UserRole } from '@prisma/client';
+import { Response } from 'express';
+import * as fs from 'fs-extra';
+import * as path from 'path';
+import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class UploadsService {
-  constructor(
-    private prisma: PrismaService,
-    private configService: ConfigService,
-  ) {}
+  private readonly uploadDir: string;
+
+  constructor(private configService: ConfigService) {
+    this.uploadDir = this.configService.get<string>('UPLOAD_DIR', './uploads');
+  }
 
   async uploadProfilePicture(file: Express.Multer.File, userId: string) {
     // Validate file
@@ -34,136 +38,92 @@ export class UploadsService {
       throw new BadRequestException('File size must be less than 5MB');
     }
 
-    console.log('Uploading file for user:', userId);
-    console.log('File details:', {
-      filename: file.filename,
-      originalname: file.originalname,
-      mimetype: file.mimetype,
-      size: file.size,
-    });
+    try {
+      // Generate unique filename
+      const fileExtension = path.extname(file.originalname);
+      const fileName = `${uuidv4()}${fileExtension}`;
+      const filePath = path.join(this.uploadDir, fileName);
 
-    // Get the user
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
+      // Ensure upload directory exists
+      await fs.ensureDir(this.uploadDir);
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+      // Save file
+      await fs.writeFile(filePath, file.buffer);
 
-    // Handle based on role
-    if (user.role === UserRole.SELLER) {
-      // Get the seller profile
-      const seller = await this.prisma.seller.findFirst({
-        where: { userId },
-      });
+      // Return the file URL/path that can be used to access the file
+      const fileUrl = `/uploads/${fileName}`;
 
-      if (!seller) {
-        throw new NotFoundException('Seller profile not found');
-      }
-
-      // Add the new profile picture
-      const fileUrl = `/uploads/${file.filename}`;
-
-      console.log('Adding profile picture:', fileUrl);
-
-      const updatedSeller = await this.prisma.seller.update({
-        where: { id: seller.id },
-        data: {
-          profilePictures: {
-            push: fileUrl,
-          },
-        },
-      });
-
-      console.log('Profile picture added successfully');
+      console.log('File uploaded successfully:', fileUrl);
 
       return {
         success: true,
-        fileUrl, // This matches what the frontend expects
-        url: fileUrl, // Keep this for backward compatibility
-        filename: file.filename,
+        fileUrl,
+        filename: fileName,
         originalName: file.originalname,
-        profilePictures: updatedSeller.profilePictures,
+        size: file.size,
+        mimetype: file.mimetype,
       };
-    } else {
-      // For now, only sellers can upload profile pictures
-      throw new ForbiddenException('Only sellers can upload profile pictures');
+    } catch (error) {
+      console.error('Upload error:', error);
+      throw new BadRequestException('Failed to upload file');
     }
   }
 
   async removeProfilePicture(fileUrl: string, userId: string) {
-    console.log('Removing profile picture:', fileUrl, 'for user:', userId);
+    try {
+      // Extract filename from URL
+      const filename = path.basename(fileUrl);
+      const filePath = path.join(this.uploadDir, filename);
 
-    // Get the user
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    // Handle based on role
-    if (user.role === UserRole.SELLER) {
-      // Get the seller profile
-      const seller = await this.prisma.seller.findFirst({
-        where: { userId },
-      });
-
-      if (!seller) {
-        throw new NotFoundException('Seller profile not found');
+      // Check if file exists before trying to delete
+      const fileExists = await fs.pathExists(filePath);
+      if (fileExists) {
+        await fs.remove(filePath);
       }
 
-      // Check if the image exists in the seller's profile pictures
-      if (!seller.profilePictures.includes(fileUrl)) {
-        throw new NotFoundException('Profile picture not found');
-      }
-
-      // Remove the file from the profile pictures array
-      const updatedProfilePictures = seller.profilePictures.filter(
-        (url) => url !== fileUrl,
-      );
-
-      const updatedSeller = await this.prisma.seller.update({
-        where: { id: seller.id },
-        data: {
-          profilePictures: updatedProfilePictures,
-        },
-      });
-
-      // Try to delete the actual file from disk
-      try {
-        const filename = fileUrl.split('/').pop(); // Extract filename from URL
-        if (!filename) {
-          throw new NotFoundException(
-            'Filename could not be determined from URL',
-          );
-        }
-        const uploadDir =
-          this.configService.get<string>('UPLOAD_DIR') ?? './uploads';
-        const filePath = join(process.cwd(), uploadDir, filename);
-
-        console.log('Attempting to delete file:', filePath);
-        await unlink(filePath);
-        console.log('File deleted successfully');
-      } catch (error) {
-        console.error('Error deleting file:', error);
-        // Continue even if file deletion fails
-      }
-
-      return {
-        success: true,
-        profilePictures: updatedSeller.profilePictures,
-      };
-    } else {
-      // For now, only sellers can remove profile pictures
-      throw new ForbiddenException('Only sellers can remove profile pictures');
+      return { success: true, message: 'File removed successfully' };
+    } catch (error) {
+      throw new BadRequestException('Failed to remove file');
     }
   }
 
-  async getUploadedFile(filename: string) {
-    const uploadDir = this.configService.get<string>('UPLOAD_DIR', './uploads');
-    return join(process.cwd(), uploadDir, filename);
+  async serveFile(filename: string, res: Response) {
+    try {
+      const filePath = path.join(process.cwd(), this.uploadDir, filename);
+
+      // Check if file exists
+      const fileExists = await fs.pathExists(filePath);
+      if (!fileExists) {
+        throw new NotFoundException('File not found');
+      }
+
+      // Get file stats to set proper headers
+      const stats = await fs.stat(filePath);
+      const fileExtension = path.extname(filename).toLowerCase();
+
+      // Set content type based on file extension
+      const contentTypeMap: Record<string, string> = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.gif': 'image/gif',
+        '.webp': 'image/webp',
+        '.svg': 'image/svg+xml',
+      };
+
+      const contentType =
+        contentTypeMap[fileExtension] || 'application/octet-stream';
+
+      res.setHeader('Content-Type', contentType);
+      res.setHeader('Content-Length', stats.size);
+      res.setHeader('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+
+      // Stream the file
+      const fileStream = fs.createReadStream(filePath);
+      fileStream.pipe(res);
+    } catch (error) {
+      console.error('Error serving file:', error);
+      throw new NotFoundException('File not found');
+    }
   }
 }
