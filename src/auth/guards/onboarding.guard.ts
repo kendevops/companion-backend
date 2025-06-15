@@ -1,5 +1,6 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
   CanActivate,
@@ -33,6 +34,21 @@ export class OnboardingGuard implements CanActivate {
 
     // Only check onboarding for sellers
     if (!user || user.role !== UserRole.SELLER) {
+      return true;
+    }
+
+    // Allow access to onboarding-related endpoints during onboarding
+    const url = request.url;
+    const onboardingAllowedPaths = [
+      '/onboarding',
+      '/uploads/profile-picture', // Allow uploads during onboarding
+    ];
+
+    // Check if the current path is allowed during onboarding
+    const isOnboardingPath = onboardingAllowedPaths.some((path) =>
+      url.includes(path),
+    );
+    if (isOnboardingPath) {
       return true;
     }
 

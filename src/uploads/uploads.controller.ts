@@ -3,50 +3,43 @@
 import {
   Controller,
   Post,
+  Delete,
   UseInterceptors,
   UploadedFile,
-  Delete,
   Body,
   Request,
-  Get,
-  Param,
-  Res,
+  BadRequestException,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadsService } from './uploads.service';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { SkipOnboardingCheck } from '../auth/decorators/skip-onboarding.decorator';
 import { UserRole } from '@prisma/client';
-import { Public } from '../auth/decorators/public.decorator';
-import { Response } from 'express';
 
 @Controller('uploads')
+@Roles(UserRole.SELLER)
+@SkipOnboardingCheck() // Allow uploads during onboarding
 export class UploadsController {
   constructor(private readonly uploadsService: UploadsService) {}
 
   @Post('profile-picture')
-  @Roles(UserRole.SELLER)
   @UseInterceptors(FileInterceptor('file'))
-  uploadProfilePicture(
+  async uploadProfilePicture(
     @UploadedFile() file: Express.Multer.File,
     @Request() req,
   ) {
+    if (!file) {
+      throw new BadRequestException('No file uploaded');
+    }
+
     return this.uploadsService.uploadProfilePicture(file, req.user.id);
   }
 
   @Delete('profile-picture')
-  @Roles(UserRole.SELLER)
-  removeProfilePicture(@Body('fileUrl') fileUrl: string, @Request() req) {
-    return this.uploadsService.removeProfilePicture(fileUrl, req.user.id);
-  }
-
-  // Serve static files from uploads directory
-  @Public()
-  @Get(':filename')
-  async serveUploadedFile(
-    @Param('filename') filename: string,
-    @Res() res: Response,
+  async removeProfilePicture(
+    @Body() body: { fileUrl: string },
+    @Request() req,
   ) {
-    const file = await this.uploadsService.getUploadedFile(filename);
-    return res.sendFile(file);
+    return this.uploadsService.removeProfilePicture(body.fileUrl, req.user.id);
   }
 }
