@@ -56,32 +56,17 @@ export class AuthService {
 
     // Check if the user is a seller and get onboarding status
     let onboardingRequired = false;
-    let nextOnboardingStep: string | null = null;
-
     if (user.role === UserRole.SELLER) {
-      // Get the seller record
-      const seller = await this.prisma.seller.findFirst({
+      const seller = await this.prisma.seller.findUnique({
         where: { userId: user.id },
+        include: {
+          contactDetails: true,
+          services: true,
+        },
       });
 
-      if (!seller || !seller.onboardingCompleted) {
+      if (seller && !seller.onboardingCompleted) {
         onboardingRequired = true;
-
-        // Determine next step
-        if (!seller || !seller.bio || seller.profilePictures.length === 0) {
-          nextOnboardingStep = 'profile';
-        } else {
-          // Check if services exist
-          const servicesCount = await this.prisma.service.count({
-            where: { sellerId: seller.id },
-          });
-
-          if (servicesCount < 3) {
-            nextOnboardingStep = 'services';
-          } else {
-            nextOnboardingStep = 'complete';
-          }
-        }
       }
     }
 
@@ -93,6 +78,7 @@ export class AuthService {
         name: user.name,
         username: user.username,
         role: user.role,
+        onboardingRequired,
       },
     };
   }

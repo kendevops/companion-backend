@@ -1,4 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import {
   Injectable,
   NotFoundException,
@@ -6,236 +9,275 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { SellerProfileDto } from './dto/seller-profile.dto';
-import { SellerServicesDto } from './dto/seller-service.dto';
-import { CompleteOnboardingDto } from './dto/complete-onboarding.dto';
+import {
+  UpdateSellerProfileDto,
+  SelectServicesDto,
+  CreateServiceFromPredefinedDto,
+} from './dto/onboarding.dto';
 import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class OnboardingService {
   constructor(private prisma: PrismaService) {}
 
+  // Check if seller has completed onboarding
   async getOnboardingStatus(userId: string) {
-    // Get the user
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: {
-        seller: true,
+        seller: {
+          include: {
+            contactDetails: true,
+            services: true,
+          },
+        },
       },
     });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
+    if (!user || user.role !== UserRole.SELLER) {
+      throw new ForbiddenException('Only sellers can access onboarding');
     }
 
-    // Check if the user is a seller
-    if (user.role !== UserRole.SELLER) {
-      throw new ForbiddenException('Only sellers have an onboarding process');
+    if (!user.seller) {
+      throw new NotFoundException('Seller profile not found');
     }
 
-    // If the seller record doesn't exist yet, create it
-    let seller = user.seller;
-    if (!seller) {
-      seller = await this.prisma.seller.create({
-        data: {
-          userId: user.id,
-          profilePictures: [],
-          verified: false,
-          rating: 0,
-          onboardingCompleted: false,
-        },
-      });
-    }
+    const hasProfileDetails = !!(
+      user.seller.bio &&
+      user.seller.contactDetails?.phoneNumber &&
+      user.seller.profilePictures.length > 0
+    );
 
-    // Get the count of services
-    const servicesCount = await this.prisma.service.count({
-      where: { sellerId: seller.id },
-    });
-
-    // Check if contact details exist
-    const contactDetails = await this.prisma.contactDetails.findUnique({
-      where: { sellerId: seller.id },
-    });
-
-    // Determine onboarding steps status
-    const stepsCompleted = {
-      profileSetup:
-        !!seller.bio && seller.profilePictures.length > 0 && !!contactDetails,
-      servicesSetup: servicesCount >= 3,
-      onboardingCompleted: seller.onboardingCompleted,
-    };
+    const hasMinimumServices = user.seller.services.length >= 3;
 
     return {
-      sellerId: seller.id,
-      ...stepsCompleted,
-      nextStep: !stepsCompleted.profileSetup
-        ? 'profile'
-        : !stepsCompleted.servicesSetup
-          ? 'services'
-          : 'dashboard',
+      completed: user.seller.onboardingCompleted,
+      steps: {
+        profileDetails: hasProfileDetails,
+        serviceSelection: hasMinimumServices,
+      },
+      seller: user.seller,
     };
   }
 
-  async updateSellerProfile(userId: string, profileDto: SellerProfileDto) {
-    // Get the seller by userId
+  // Update seller profile details (Step 1)
+  async updateSellerProfile(
+    userId: string,
+    updateData: UpdateSellerProfileDto,
+  ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: { seller: true },
     });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
+    if (!user || user.role !== UserRole.SELLER) {
+      throw new ForbiddenException('Only sellers can update profile');
     }
 
-    if (user.role !== UserRole.SELLER) {
-      throw new ForbiddenException('Only sellers can update seller profiles');
-    }
-
-    let seller = user.seller;
-    if (!seller) {
-      // Create seller profile if it doesn't exist
-      seller = await this.prisma.seller.create({
-        data: {
-          userId: user.id,
-          profilePictures: [],
-          verified: false,
-          rating: 0,
-          onboardingCompleted: false,
-        },
-      });
+    if (!user.seller) {
+      throw new NotFoundException('Seller profile not found');
     }
 
     // Update seller profile
     const updatedSeller = await this.prisma.seller.update({
-      where: { id: seller.id },
+      where: { id: user.seller.id },
       data: {
-        bio: profileDto.bio,
-        profilePictures: profileDto.profilePictures,
+        bio: updateData.bio,
+        profilePictures:
+          updateData.profilePictures || user.seller.profilePictures,
+      },
+      include: {
+        contactDetails: true,
+        user: true,
       },
     });
 
     // Update or create contact details
-    let contactDetails = await this.prisma.contactDetails.findUnique({
-      where: { sellerId: seller.id },
-    });
-
-    if (contactDetails) {
-      contactDetails = await this.prisma.contactDetails.update({
-        where: { id: contactDetails.id },
-        data: profileDto.contactDetails,
-      });
-    } else {
-      contactDetails = await this.prisma.contactDetails.create({
-        data: {
-          ...profileDto.contactDetails,
-          sellerId: seller.id,
+    if (updateData.phoneNumber || updateData.instagram || updateData.wechat) {
+      if (!updateData.phoneNumber) {
+        throw new BadRequestException('Phone number is required');
+      }
+      await this.prisma.contactDetails.upsert({
+        where: { sellerId: user.seller.id },
+        update: {
+          phoneNumber: updateData.phoneNumber,
+          instagram: updateData.instagram,
+          wechat: updateData.wechat,
+        },
+        create: {
+          sellerId: user.seller.id,
+          phoneNumber: updateData.phoneNumber,
+          instagram: updateData.instagram,
+          wechat: updateData.wechat,
         },
       });
     }
 
-    return {
-      ...updatedSeller,
-      contactDetails,
-    };
+    return updatedSeller;
   }
 
-  async addSellerServices(userId: string, servicesDto: SellerServicesDto) {
-    // Get the seller by userId
+  // Get all predefined services
+  getPredefinedServices() {
+    return this.prisma.predefinedService.findMany({
+      where: { isActive: true },
+      orderBy: [{ category: 'asc' }, { name: 'asc' }],
+    });
+  }
+
+  // Create services from predefined list (Step 2)
+  async createServicesFromPredefined(
+    userId: string,
+    servicesData: CreateServiceFromPredefinedDto[],
+  ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: { seller: true },
     });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (user.role !== UserRole.SELLER) {
-      throw new ForbiddenException('Only sellers can add services');
+    if (!user || user.role !== UserRole.SELLER) {
+      throw new ForbiddenException('Only sellers can create services');
     }
 
     if (!user.seller) {
-      throw new BadRequestException('Complete profile setup first');
+      throw new NotFoundException('Seller profile not found');
     }
 
-    // Check if the user already has completed the profile step
-    const contactDetails = await this.prisma.contactDetails.findUnique({
-      where: { sellerId: user.seller.id },
+    const sellerId = user.seller.id;
+
+    if (servicesData.length < 3) {
+      throw new BadRequestException('You must select at least 3 services');
+    }
+
+    // Verify all predefined services exist
+    const predefinedServiceIds = servicesData.map((s) => s.predefinedServiceId);
+    const predefinedServices = await this.prisma.predefinedService.findMany({
+      where: {
+        id: { in: predefinedServiceIds },
+        isActive: true,
+      },
     });
 
-    if (
-      !contactDetails ||
-      !user.seller.bio ||
-      user.seller.profilePictures.length === 0
-    ) {
-      throw new BadRequestException('Complete profile setup first');
+    if (predefinedServices.length !== predefinedServiceIds.length) {
+      throw new BadRequestException('Some selected services are invalid');
     }
+    // Create services for the seller
+    const createdServices = await Promise.all(
+      servicesData.map(async (serviceData) => {
+        const predefinedService = predefinedServices.find(
+          (ps) => ps.id === serviceData.predefinedServiceId,
+        );
 
-    // Add services
-    const createdServices: Array<
-      Awaited<ReturnType<typeof this.prisma.service.create>>
-    > = [];
-    for (const serviceData of servicesDto.services) {
-      const service = await this.prisma.service.create({
-        data: {
-          ...serviceData,
-          sellerId: user.seller.id,
-        },
-      });
-      createdServices.push(service);
-    }
+        return this.prisma.service.create({
+          data: {
+            sellerId: sellerId,
+            title: serviceData.title,
+            description:
+              serviceData.description || predefinedService.description,
+            price: serviceData.price || predefinedService.basePrice,
+            isAvailable: true,
+          },
+        });
+      }),
+    );
 
     return createdServices;
   }
 
-  async completeOnboarding(userId: string, completeDto: CompleteOnboardingDto) {
-    // Get the seller by userId
+  // Complete onboarding
+  async completeOnboarding(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        seller: {
+          include: {
+            contactDetails: true,
+            services: true,
+          },
+        },
+      },
+    });
+
+    if (!user || user.role !== UserRole.SELLER) {
+      throw new ForbiddenException('Only sellers can complete onboarding');
+    }
+
+    if (!user.seller) {
+      throw new NotFoundException('Seller profile not found');
+    }
+
+    // Check if all requirements are met
+    const hasProfileDetails = !!(
+      user.seller.bio &&
+      user.seller.contactDetails?.phoneNumber &&
+      user.seller.profilePictures.length > 0
+    );
+
+    const hasMinimumServices = user.seller.services.length >= 3;
+
+    if (!hasProfileDetails || !hasMinimumServices) {
+      throw new BadRequestException('Please complete all onboarding steps');
+    }
+
+    // Mark onboarding as completed
+    const updatedSeller = await this.prisma.seller.update({
+      where: { id: user.seller.id },
+      data: { onboardingCompleted: true },
+      include: {
+        user: true,
+        contactDetails: true,
+        services: true,
+      },
+    });
+
+    return updatedSeller;
+  }
+
+  // Bulk select services (alternative approach)
+  async selectPredefinedServices(
+    userId: string,
+    selectData: SelectServicesDto,
+  ) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: { seller: true },
     });
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (user.role !== UserRole.SELLER) {
-      throw new ForbiddenException('Only sellers have an onboarding process');
+    if (!user || user.role !== UserRole.SELLER) {
+      throw new ForbiddenException('Only sellers can select services');
     }
 
     if (!user.seller) {
-      throw new BadRequestException('Seller profile does not exist');
+      throw new NotFoundException('Seller profile not found');
     }
 
-    // Check if profile and services are completed
-    const contactDetails = await this.prisma.contactDetails.findUnique({
-      where: { sellerId: user.seller.id },
-    });
-
-    if (
-      !contactDetails ||
-      !user.seller.bio ||
-      user.seller.profilePictures.length === 0
-    ) {
-      throw new BadRequestException('Complete profile setup first');
-    }
-
-    const servicesCount = await this.prisma.service.count({
-      where: { sellerId: user.seller.id },
-    });
-
-    if (servicesCount < 3) {
-      throw new BadRequestException('Add at least 3 services first');
-    }
-
-    // Update onboarding status
-    const updatedSeller = await this.prisma.seller.update({
-      where: { id: user.seller.id },
-      data: {
-        onboardingCompleted: completeDto.completed,
+    // Verify all predefined services exist
+    const predefinedServices = await this.prisma.predefinedService.findMany({
+      where: {
+        id: { in: selectData.predefinedServiceIds },
+        isActive: true,
       },
     });
 
-    return updatedSeller;
+    if (predefinedServices.length !== selectData.predefinedServiceIds.length) {
+      throw new BadRequestException('Some selected services are invalid');
+    }
+
+    // Create services based on predefined services
+    const sellerId = user.seller.id;
+    const createdServices = await Promise.all(
+      predefinedServices.map(async (predefinedService) => {
+        return this.prisma.service.create({
+          data: {
+            sellerId: sellerId,
+            title: predefinedService.name,
+            description: predefinedService.description,
+            price: predefinedService.basePrice,
+            isAvailable: true,
+          },
+        });
+      }),
+    );
+
+    return createdServices;
   }
 }

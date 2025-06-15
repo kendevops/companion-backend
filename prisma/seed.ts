@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/no-misused-promises */
 import { PrismaClient, UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
+import { seedPredefinedServices } from './predefinedServices';
 
 const prisma = new PrismaClient();
 
@@ -14,10 +15,13 @@ async function main() {
   await prisma.purchase.deleteMany();
   await prisma.service.deleteMany();
   await prisma.contactDetails.deleteMany();
+  await prisma.predefinedService.deleteMany();
   await prisma.admin.deleteMany();
   await prisma.seller.deleteMany();
   await prisma.buyer.deleteMany();
   await prisma.user.deleteMany();
+
+  await seedPredefinedServices();
 
   // Create admin user
   const adminPassword = await bcrypt.hash('admin123', 10);

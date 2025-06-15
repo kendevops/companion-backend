@@ -23,134 +23,148 @@ enum UserRole {
 }
 
 model User {
-  id             String    @id @default(uuid())
-  email          String    @unique
-  username       String    @unique
-  name           String
-  password       String
-  role           UserRole
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id        String   @id @default(uuid())
+  email     String   @unique
+  username  String   @unique
+  name      String
+  password  String
+  role      UserRole
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relations
-  seller         Seller?
-  buyer          Buyer?
-  admin          Admin?
+  seller             Seller?
+  buyer              Buyer?
+  admin              Admin?
+  PasswordResetToken PasswordResetToken[]
 }
 
 model Admin {
-  id             String    @id @default(uuid())
-  userId         String    @unique
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model Seller {
-  id             String    @id @default(uuid())
-  userId         String    @unique
-  profilePictures String[]
-  bio            String?
-  verified       Boolean   @default(false)
-  rating         Float     @default(0)
-  onboardingCompleted Boolean @default(false)
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                  String   @id @default(uuid())
+  userId              String   @unique
+  user                User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profilePictures     String[]
+  bio                 String?
+  verified            Boolean  @default(false)
+  rating              Float    @default(0.0)
+  onboardingCompleted Boolean  @default(false)
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
   // Relations
-  contactDetails ContactDetails?
   services       Service[]
-  reviews        Review[]
   purchases      Purchase[]
+  contactDetails ContactDetails?
+  reviews        Review[]
 }
 
 model Buyer {
-  id             String    @id @default(uuid())
-  userId         String    @unique
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Relations
-  purchases      Purchase[]
-  reviews        Review[]
+  purchases Purchase[]
+  reviews   Review[]
 }
 
 model ContactDetails {
-  id             String    @id @default(uuid())
-  sellerId       String    @unique
-  phoneNumber    String
-  instagram      String?
-  wechat         String?
-  seller         Seller    @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  id          String  @id @default(uuid())
+  sellerId    String  @unique
+  phoneNumber String
+  instagram   String?
+  wechat      String?
+  seller      Seller  @relation(fields: [sellerId], references: [id], onDelete: Cascade)
 }
 
 model Service {
-  id             String    @id @default(uuid())
-  title          String
-  description    String
-  price          Float
-  isAvailable    Boolean   @default(true)
-  sellerId       String
-  seller         Seller    @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  price       Float
+  isAvailable Boolean  @default(true)
+  sellerId    String
+  seller      Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relations
-  purchases      PurchaseService[]
-  reviews        Review[]
+  purchases PurchaseService[]
+  reviews   Review[]
 }
 
 model Purchase {
-  id             String    @id @default(uuid())
-  buyerId        String
-  buyer          Buyer     @relation(fields: [buyerId], references: [id], onDelete: Cascade)
-  sellerId       String
-  seller         Seller    @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  totalAmount    Float
-  status         String    // PENDING, ACCEPTED, COMPLETED, CANCELLED, REFUNDED
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id          String   @id @default(uuid())
+  buyerId     String
+  buyer       Buyer    @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  sellerId    String
+  seller      Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  totalAmount Float
+  status      String // PENDING, ACCEPTED, COMPLETED, CANCELLED, REFUNDED
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
   // Relations
-  services       PurchaseService[]
-  payment        Payment?
+  services PurchaseService[]
+  payment  Payment?
 }
 
 model PurchaseService {
-  purchaseId     String
-  purchase       Purchase  @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  serviceId      String
-  service        Service   @relation(fields: [serviceId], references: [id])
-  price          Float     // We store the price at the time of purchase
+  purchaseId String
+  purchase   Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  serviceId  String
+  service    Service  @relation(fields: [serviceId], references: [id])
+  price      Float // We store the price at the time of purchase
 
   @@id([purchaseId, serviceId])
 }
 
 model Payment {
-  id             String    @id @default(uuid())
-  purchaseId     String    @unique
-  purchase       Purchase  @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
-  amount         Float
-  paymentMethod  String
-  status         String    // PENDING, COMPLETED, FAILED, REFUNDED
-  createdAt      DateTime  @default(now())
+  id            String   @id @default(uuid())
+  purchaseId    String   @unique
+  purchase      Purchase @relation(fields: [purchaseId], references: [id], onDelete: Cascade)
+  amount        Float
+  paymentMethod String
+  status        String // PENDING, COMPLETED, FAILED, REFUNDED
+  createdAt     DateTime @default(now())
 }
 
 model Review {
-  id             String    @id @default(uuid())
-  buyerId        String
-  buyer          Buyer     @relation(fields: [buyerId], references: [id], onDelete: Cascade)
-  sellerId       String
-  seller         Seller    @relation(fields: [sellerId], references: [id], onDelete: Cascade)
-  serviceId      String
-  service        Service   @relation(fields: [serviceId], references: [id], onDelete: Cascade)
-  rating         Int
-  comment        String
-  createdAt      DateTime  @default(now())
+  id        String   @id @default(uuid())
+  buyerId   String
+  buyer     Buyer    @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  sellerId  String
+  seller    Seller   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  rating    Int
+  comment   String
+  createdAt DateTime @default(now())
 }
 
-model ServiceTemplate {
-  id              String    @id @default(uuid())
-  title           String
-  description     String
-  recommendedPrice Float
-  category        String
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expires   DateTime
+  createdAt DateTime @default(now())
+  used      Boolean  @default(false)
+}
+
+model PredefinedService {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String
+  category    String
+  basePrice   Float
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
